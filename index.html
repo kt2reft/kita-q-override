@@ -2,7 +2,10 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0b0c0f">
 <title>KITA-Q OVERRIDE — ALPHA</title>
 <link rel="stylesheet" href="css/style.css">
 <!-- CDN 改ざん対策：読み込む全モジュールに SRI ハッシュを指定（three を更新したら再計算が必要） -->
@@ -58,6 +61,65 @@
   <div id="keys-hint">H：操作説明</div>
 </div>
 
+<!-- ---------- タッチ操作（スマホ・タブレット） ---------- -->
+<div id="touch" class="hidden foot">
+  <div id="tstick"><div id="tknob"></div></div>
+
+  <div class="tgrp" id="tg-foot">
+    <div class="tcol">
+      <button class="tbtn sm" data-toggle="ShiftLeft" aria-label="ダッシュ">走</button>
+      <button class="tbtn sm" data-k="KeyC" aria-label="歩き切替">歩</button>
+      <button class="tbtn sm" data-k="KeyG" aria-label="ヤンキー座り">座</button>
+    </div>
+    <div class="tmain">
+      <div class="trow">
+        <button class="tbtn" data-k="KeyF" aria-label="強制給餌テイクダウン">給餌</button>
+        <button class="tbtn" data-k="KeyE" aria-label="乗る・調べる">使用</button>
+      </div>
+      <div class="trow">
+        <button class="tbtn" data-k="Space" aria-label="ジャンプ・パラグライダー">跳</button>
+        <button class="tbtn big" data-k="ATTACK" aria-label="攻撃">攻撃</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tgrp" id="tg-veh">
+    <div class="tcol">
+      <button class="tbtn sm" data-k="KeyH" aria-label="クラクション">笛</button>
+      <button class="tbtn sm" data-k="KeyE" aria-label="降りる">降</button>
+    </div>
+    <div class="tmain">
+      <div class="trow">
+        <button class="tbtn txt" data-k="Space" aria-label="サイドブレーキ">ドリフト</button>
+        <button class="tbtn" data-k="KeyF" aria-label="太鼓の衝撃波">太鼓</button>
+      </div>
+      <div class="trow">
+        <button class="tbtn txt" data-k="KeyS" aria-label="ブレーキ・後退">ブレーキ</button>
+        <button class="tbtn big" data-k="KeyW" aria-label="アクセル">アクセル</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tgrp" id="tg-gld">
+    <div class="tcol">
+      <button class="tbtn txt" data-k="Space" aria-label="パラグライダーをたたむ">たたむ</button>
+    </div>
+    <div class="tmain">
+      <div class="trow">
+        <button class="tbtn" data-k="KeyS" aria-label="フレア">フレア</button>
+        <button class="tbtn big" data-k="KeyW" aria-label="急降下">急降下</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="tsys">
+    <button class="tbtn sm" data-k="VHelp" aria-label="操作説明">？</button>
+    <button class="tbtn sm" data-k="VPause" aria-label="ポーズ">II</button>
+  </div>
+</div>
+
+<div id="rotate"><div>横向きにしてプレイしてください</div></div>
+
 <div id="bubbles"></div>
 <div id="banner"></div>
 <div id="lb-top" class="lb"></div><div id="lb-bottom" class="lb"></div>
@@ -66,21 +128,39 @@
 
 <div id="help" class="hidden">
   <div class="help-card">
+    <button class="help-x" data-k="VHelp" aria-label="閉じる">✕</button>
     <h2>操作説明</h2>
     <div class="help-grid">
-      <div><h3>徒歩</h3>
+      <div class="h-kb"><h3>徒歩（キーボード）</h3>
         <p><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移動　<kbd>マウス</kbd>/<kbd>矢印</kbd> 視点</p>
         <p><kbd>Shift</kbd> ダッシュ　<kbd>C</kbd> 歩き切替　<kbd>Space</kbd> ジャンプ</p>
         <p><kbd>クリック</kbd>/<kbd>J</kbd> 攻撃・使用　<kbd>F</kbd> 強制給餌テイクダウン</p>
         <p><kbd>E</kbd> 乗る・調べる　<kbd>G</kbd> ヤンキー座り</p>
         <p><kbd>1</kbd> スプレー <kbd>2</kbd> ごぼ天 <kbd>3</kbd> ペイント <kbd>4</kbd> ロケラン <kbd>5</kbd> 木刀 <kbd>Q</kbd> 素手</p>
       </div>
-      <div><h3>ビークル / パラグライダー</h3>
+      <div class="h-kb"><h3>ビークル / パラグライダー</h3>
         <p><kbd>W</kbd><kbd>S</kbd> アクセル/ブレーキ　<kbd>A</kbd><kbd>D</kbd> ハンドル</p>
         <p><kbd>Space</kbd> サイドブレーキ　<kbd>E</kbd> 降りる</p>
         <p>太鼓山車：<kbd>クリック</kbd>/<kbd>F</kbd> 太鼓の衝撃波</p>
         <p>空中で <kbd>Space</kbd> パラグライダー（<kbd>A</kbd><kbd>D</kbd> 旋回 <kbd>W</kbd> 急降下 <kbd>S</kbd> フレア）</p>
         <p><kbd>P</kbd> ポーズ　<kbd>H</kbd> この画面</p>
+      </div>
+      <div class="h-pad"><h3>コントローラ</h3>
+        <p><kbd>左スティック</kbd> 移動　<kbd>右スティック</kbd> 視点</p>
+        <p><kbd>RT</kbd> 攻撃・使用／アクセル　<kbd>LT</kbd> ダッシュ／ブレーキ</p>
+        <p><kbd>A</kbd> ジャンプ・パラグライダー／サイドブレーキ</p>
+        <p><kbd>B</kbd> 給餌テイクダウン／太鼓　<kbd>X</kbd> 乗る・調べる</p>
+        <p><kbd>Y</kbd> ヤンキー座り／クラクション　<kbd>L3</kbd> 歩き切替</p>
+        <p><kbd>LB</kbd><kbd>RB</kbd>・<kbd>十字←→</kbd> 武器切替　<kbd>十字↑</kbd> 素手</p>
+        <p><kbd>START</kbd> ポーズ　<kbd>SELECT</kbd> この画面</p>
+      </div>
+      <div class="h-touch"><h3>スマホ・タブレット</h3>
+        <p>画面左下を<b>なぞって</b>移動（仮想スティック）</p>
+        <p>画面右側を<b>なぞって</b>視点。右下のボタンで行動</p>
+        <p>武器は画面下の武器リストを<b>タップ</b>して切替</p>
+        <p>画面上の <b>？</b> で操作説明、<b>II</b> でポーズ</p>
+        <p>ビークル搭乗中・パラグライダー中はボタンが自動で切り替わる</p>
+        <p class="dim">視点の感度はタイトル画面のスライダーで調整できます。<br>横向き（ランドスケープ）推奨。</p>
       </div>
     </div>
     <h3>オーバーライドの手引き</h3>
@@ -91,7 +171,7 @@
       <li>信号機を壊すと、その交差点の車は歩行者を無視して突っ込む。</li>
       <li>素手（<kbd>Q</kbd>）で歩く・立つと <b>ヤンキー横断</b> が発動し、前方の車を急停止させる。</li>
     </ul>
-    <p class="close">H または クリックで閉じる</p>
+    <p class="close">H ／ SELECT ／ ここをタップ で閉じる</p>
   </div>
 </div>
 
@@ -104,9 +184,11 @@
     <div class="opts">
       <label>画質 <select id="quality"><option value="high">高画質（AO・ブルーム・MSAA）</option><option value="mid">標準</option><option value="low">軽量</option></select></label>
       <label><input type="checkbox" id="voice" checked> ボイス（音声合成）</label>
+      <label>視点感度 <input type="range" id="sens" min="0.4" max="2" step="0.1" value="1"></label>
     </div>
     <button id="start" disabled>LOADING…</button>
-    <div class="title-keys">WASD 移動 ／ マウス 視点 ／ クリック 攻撃 ／ E 乗る・調べる ／ F テイクダウン ／ H 操作説明</div>
+    <div class="title-keys" id="title-keys">WASD 移動 ／ マウス 視点 ／ クリック 攻撃 ／ E 乗る・調べる ／ F テイクダウン ／ H 操作説明<br>
+      <span class="dim">スマホ（タッチ操作）とゲームパッドにも対応。コントローラは A ボタンでも開始できます。</span></div>
     <div id="err"></div>
   </div>
 </div>
