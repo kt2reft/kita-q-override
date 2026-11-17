@@ -4,9 +4,9 @@ import { CFG, PAINT_COLORS } from './config.js';
 import { clamp, damp, lerp, angDiff, turnToward } from './utils.js';
 import { makeMats, makePose, applyAnim, applyUpper, computeMatrices, makeGeoms } from './humanoid.js';
 
-export const WEAPONS = [
-  { id: 'none', name: '素手', key: 'Q' }, { id: 'spray', name: '洗脳スプレー', key: '1' }, { id: 'goboten', name: 'ごぼ天ソード', key: '2' },
-  { id: 'paint', name: 'ペイントガン', key: '3' }, { id: 'rocket', name: 'ロケラン', key: '4' }, { id: 'bokuto', name: '木刀', key: '5' },
+export const WEAPONS = [ // short：タッチ UI の武器スロット用の短縮名
+  { id: 'none', name: '素手', short: '素手', key: 'Q' }, { id: 'spray', name: '洗脳スプレー', short: 'スプレー', key: '1' }, { id: 'goboten', name: 'ごぼ天ソード', short: 'ごぼ天', key: '2' },
+  { id: 'paint', name: 'ペイントガン', short: 'ペイント', key: '3' }, { id: 'rocket', name: 'ロケラン', short: 'ロケラン', key: '4' }, { id: 'bokuto', name: '木刀', short: '木刀', key: '5' },
 ];
 const std = (o) => new THREE.MeshStandardMaterial(o);
 const PAINT_KEYS = Object.keys(PAINT_COLORS);
@@ -123,6 +123,14 @@ export class Player {
     this.model = new PlayerModel(G); this.shots = new Projectiles(G);
   }
   get wid() { return WEAPONS[this.weapon].id; }
+  available(i) { // 所持していて選択できる武器か
+    const id = WEAPONS[i].id;
+    return id === 'paint' ? !!this.inv.paint : id === 'rocket' ? this.inv.rockets > 0 : id === 'bokuto' ? this.inv.bokuto > 0 : true;
+  }
+  cycleWeapon(d) { // 持っている武器だけを順送り（LB/RB・十字キー）
+    const n = WEAPONS.length;
+    for (let k = 1; k <= n; k++) { const i = (((this.weapon + d * k) % n) + n) % n; if (this.available(i)) { this.setWeapon(i); return; } }
+  }
   setWeapon(i) {
     const id = WEAPONS[i].id, G = this.G;
     if (id === 'paint' && !this.inv.paint) return G.ui.toast('ペイントガンは MQ_05 フェーズ2で支給される', 'info');
@@ -143,6 +151,7 @@ export class Player {
   // ---------- 入力ごとの更新 ----------
   update(dt) {
     const G = this.G, I = G.input; this.t += dt;
+    I.setCtx(G.mission.cutscene ? 'cut' : this.mode);
     if (this.invuln > 0) this.invuln -= dt; if (this.fireCool > 0) this.fireCool -= dt; if (this.aimT > 0) this.aimT -= dt; if (this.hurtFlash > 0) this.hurtFlash -= dt;
     this.camYaw -= I.dx * 0.0024 + ((I.down('ArrowRight') ? 1 : 0) - (I.down('ArrowLeft') ? 1 : 0)) * 1.9 * dt;
     this.camPitch = clamp(this.camPitch + I.dy * 0.0022 + ((I.down('ArrowDown') ? 1 : 0) - (I.down('ArrowUp') ? 1 : 0)) * 1.2 * dt, -0.45, 1.25);
@@ -177,14 +186,15 @@ export class Player {
   updFoot(dt, I) {
     const G = this.G, p = this.pos;
     if (I.hit('Digit1')) this.setWeapon(1); if (I.hit('Digit2')) this.setWeapon(2); if (I.hit('Digit3')) this.setWeapon(3); if (I.hit('Digit4')) this.setWeapon(4); if (I.hit('Digit5')) this.setWeapon(5); if (I.hit('KeyQ')) this.setWeapon(0);
+    if (I.wcycle) this.cycleWeapon(I.wcycle);
     if (I.hit('KeyC')) { this.walkMode = !this.walkMode; G.ui.toast(this.walkMode ? '歩きモード：肩で風を切る' : '走りモード', 'info'); }
     if (I.hit('KeyG')) this.squat = !this.squat;
-    const mx = (I.down('KeyD') ? 1 : 0) - (I.down('KeyA') ? 1 : 0), mz = (I.down('KeyW') ? 1 : 0) - (I.down('KeyS') ? 1 : 0), moving = mx !== 0 || mz !== 0;
+    const mx = I.mvx, mz = I.mvz, mag = Math.min(1, Math.hypot(mx, mz)), moving = mag > 0.08;
     if (moving) this.squat = false;
     const cy = this.camYaw; let dx = Math.sin(cy) * mz - Math.cos(cy) * mx, dz = Math.cos(cy) * mz + Math.sin(cy) * mx; const dl = Math.hypot(dx, dz) || 1; dx /= dl; dz /= dl;
     const sprint = I.down('ShiftLeft') || I.down('ShiftRight');
     const max = this.walkMode ? 1.75 : sprint ? 7.6 : 4.6, acc = this.onGround ? 13 : 2.5;
-    this.vel.x = damp(this.vel.x, moving ? dx * max : 0, acc, dt); this.vel.z = damp(this.vel.z, moving ? dz * max : 0, acc, dt);
+    this.vel.x = damp(this.vel.x, moving ? dx * max * mag : 0, acc, dt); this.vel.z = damp(this.vel.z, moving ? dz * max * mag : 0, acc, dt);
     if (this.onGround && I.hit('Space')) { this.vel.y = 5.7; this.onGround = false; G.audio.play('jump'); }
     else if (!this.onGround && I.hit('Space') && p.y - G.world.groundAt(p.x, p.z, p.y) > 3 && this.vel.y < 1) { // パラグライダー展開
       this.mode = 'glide'; this.gs = Math.max(6, Math.hypot(this.vel.x, this.vel.z)); this.swingT = -1; G.audio.play('glider'); this.camYaw = this.yaw; return;
@@ -286,7 +296,7 @@ export class Player {
   }
   // ---------- パラグライダー ----------
   updGlide(dt, I) {
-    const G = this.G, turn = (I.down('KeyA') ? 1 : 0) - (I.down('KeyD') ? 1 : 0), dive = I.down('KeyW'), flare = I.down('KeyS');
+    const G = this.G, turn = clamp(-I.mvx, -1, 1), dive = I.mvz > 0.35, flare = I.mvz < -0.35;
     this.yaw += turn * 1.3 * dt; this.roll = damp(this.roll, -turn * 0.38, 4, dt);
     this.gs = damp(this.gs, dive ? 15.5 : flare ? 7 : 11, 1.8, dt);
     this.vel.x = Math.sin(this.yaw) * this.gs; this.vel.z = Math.cos(this.yaw) * this.gs; this.vel.y = damp(this.vel.y, dive ? -5 : flare ? -0.9 : -1.9, 3, dt);
@@ -296,7 +306,7 @@ export class Player {
     if (this.onGround || I.hit('Space')) { this.mode = 'foot'; this.roll = 0; if (this.onGround) G.fx.puff(this.pos.x, this.pos.y + 0.2, this.pos.z, 6, [0.6, 0.58, 0.55], 0.9, 0.6, 1.5, 0.4, 0.4); }
   }
   // ---------- ビークル ----------
-  enter(v) { this.mode = 'vehicle'; this.vehicle = v; v.driver = this; this.vel.set(0, 0, 0); this.squat = false; this.swingT = -1; this.camYaw = v.yaw; this.G.audio.play('ui'); this.G.ui.toast(v.type === 'daiko' ? '太鼓：クリック/F で衝撃波（半径20m・盆踊り5秒）／ドリフト注意' : 'ダンプ：オーガニックカフェに速度500以上で突っ込め', 'info'); }
+  enter(v) { this.mode = 'vehicle'; this.vehicle = v; v.driver = this; this.vel.set(0, 0, 0); this.squat = false; this.swingT = -1; this.camYaw = v.yaw; this.G.audio.play('ui'); this.G.ui.toast(v.type === 'daiko' ? '太鼓：<b>クリック/F</b> で衝撃波（半径20m・盆踊り5秒）／ドリフト注意' : 'ダンプ：オーガニックカフェに速度500以上で突っ込め', 'info'); }
   exit() {
     const v = this.vehicle; if (!v) return; const lx = Math.cos(v.yaw), lz = -Math.sin(v.yaw);
     this.pos.set(v.x + lx * (v.P.wid / 2 + 0.9), v.y, v.z + lz * (v.P.wid / 2 + 0.9)); this.G.world.resolveCircle(this.pos, 0.4, 0.3);
@@ -304,13 +314,13 @@ export class Player {
   }
   updVehicle(dt, I) {
     const G = this.G, v = this.vehicle;
-    v.ctl.throttle = (I.down('KeyW') ? 1 : 0) - (I.down('KeyS') ? 1 : 0); v.ctl.steer = (I.down('KeyA') ? 1 : 0) - (I.down('KeyD') ? 1 : 0); v.ctl.handbrake = I.down('Space');
+    v.ctl.throttle = clamp(I.mvz, -1, 1); v.ctl.steer = clamp(-I.mvx, -1, 1); v.ctl.handbrake = I.down('Space');
     this.pos.set(v.x, v.y + v.P.seatY, v.z); this.yaw = v.yaw; this.moveYaw = v.yaw; this.speed = v.speed;
     if (v.type === 'daiko' && (I.click || I.hit('KeyF'))) G.vehicles.daikoHit(v);
     if (I.hit('KeyH')) G.audio.play('horn');
     G.audio.engine(v.type === 'dump', v.speed, true);
     if (v.speed > 2) this.camYaw = turnToward(this.camYaw, v.yaw, (Math.abs(angDiff(this.camYaw, v.yaw)) * 2.2 + 0.1) * dt);
-    this.interact = { text: `<b>E</b> 降りる　<b>W/S</b> アクセル/ブレーキ　<b>A/D</b> ハンドル　<b>SPACE</b> サイドブレーキ${v.type === 'daiko' ? '　<b>クリック/F</b> 太鼓' : ''}`, fn: null };
+    this.interact = { text: I.touch ? '<b>E</b> 降りる' : `<b>E</b> 降りる　<b>W/S</b> アクセル/ブレーキ　<b>A/D</b> ハンドル　<b>SPACE</b> サイドブレーキ${v.type === 'daiko' ? '　<b>クリック/F</b> 太鼓' : ''}`, fn: null };
     if (I.hit('KeyE') && v.speed < 6) this.exit();
   }
   updDown(dt) {
