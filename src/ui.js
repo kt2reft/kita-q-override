@@ -84,7 +84,7 @@ export class UI {
     const lv = G.law.level; this.el.wanted.innerHTML = lv > 0 ? `<span class="wl">通報</span>${'<i class="on"></i>'.repeat(lv)}${'<i></i>'.repeat(3 - lv)}` : '';
     // スキル表示
     let sk = '';
-    if (P.mode === 'foot' && P.yankeeWalk) sk = `<b>ヤンキー横断</b> 発動中${P.braked ? `　Force_Brake ×${P.braked}` : ''}${P.glare && !P.glare.yankee ? `<br>瞋みつけ：運転手の恐怖 ${Math.min(100, P.glare.fear).toFixed(0)}%` : ''}`;
+    if (P.mode === 'foot' && P.yankeeWalk) sk = `<b>ヤンキー横断</b> 発動中${P.braked ? `　Force_Brake ×${P.braked}` : ''}${P.glare && !P.glare.yankee ? `<br>睨みつけ：運転手の恐怖 ${Math.min(100, P.glare.fear).toFixed(0)}%` : ''}`;
     else if (P.mode === 'foot' && WEAPONS[P.weapon].id === 'none') sk = this.glyph('<span class="dim">歩く（<b>C</b>）か立ち止まるとヤンキー横断</span>');
     if (sk !== this.lastSkill) { this.lastSkill = sk; this.el.skill.innerHTML = sk; this.el.skill.classList.toggle('show', !!sk); }
     // 統計
