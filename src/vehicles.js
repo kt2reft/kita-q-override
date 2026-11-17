@@ -78,8 +78,9 @@ export class Drivable {
     let vf = this.vx * fx + this.vz * fz, vl = this.vx * lx + this.vz * lz;
     if (this.drumCool > 0) this.drumCool -= dt; this.drumT += dt; if (this.crashCool > 0) this.crashCool -= dt;
     if (ctl) {
-      if (ctl.throttle > 0) vf += (vf < 0 ? P.brake : P.accel) * dt;
-      else if (ctl.throttle < 0) vf -= (vf > 0.5 ? P.brake : P.accel * 0.6) * dt;
+      const th = Math.abs(ctl.throttle);
+      if (ctl.throttle > 0) vf += (vf < 0 ? P.brake : P.accel) * th * dt;
+      else if (ctl.throttle < 0) vf -= (vf > 0.5 ? P.brake : P.accel * 0.6) * th * dt;
       vf = clamp(vf, -P.rev, P.maxV); this.steer = damp(this.steer, ctl.steer, 7, dt);
     } else { this.steer = damp(this.steer, 0, 6, dt); vf *= Math.exp(-1.6 * dt); }
     const hb = ctl && ctl.handbrake;

@@ -18,6 +18,8 @@ import { Facilities } from './facility.js';
 import { Player } from './player.js';
 import { Mission } from './mission.js';
 import { UI } from './ui.js';
+import { Input, isTouchDevice } from './input.js';
+import { CFG } from './config.js';
 import { damp } from './utils.js';
 
 const $ = (id) => document.getElementById(id);
@@ -48,6 +50,13 @@ window.addEventListener('error', (e) => showError(e.error || e.message));
 window.addEventListener('unhandledrejection', (e) => showError(e.reason));
 
 function init() {
+  // スマホ・タブレットは既定で軽量側に寄せ、群衆・交通量も控えめにする
+  const TOUCH = (G.touch = isTouchDevice());
+  if (TOUCH) {
+    document.body.classList.add('touch');
+    G.quality = 'low'; const q = $('quality'); if (q) q.value = 'low';
+    CFG.AMBIENT_NPCS = 36; CFG.TRAFFIC_CARS = 11;
+  }
   const renderer = (G.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' }));
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.66;
@@ -88,40 +97,38 @@ function init() {
 
   let firstYankee = true, zoneToast = 0;
   G.onYankeeFied = (n, src) => {
-    if (firstYankee && n.kind !== 'quest') { firstYankee = false; G.ui.toast('ヤンキー化成功！ 舎弟として追従する（G でヤンキー座り）', 'shura'); }
+    if (firstYankee && n.kind !== 'quest') { firstYankee = false; G.ui.toast('ヤンキー化成功！ 舎弟として追従する（<b>G</b> でヤンキー座り）', 'shura'); }
     else if (src.cause === 'zone' && G.time - zoneToast > 8) { zoneToast = G.time; G.ui.toast('修羅ゾーンの空気で市民がヤンキー化した', 'shura'); }
     else if (src.cause === 'traffic') G.ui.toast('交通崩壊にブチ切れた市民がヤンキー化', 'shura');
   };
 
-  // ---- 入力 ----
-  const keys = new Set(), pressed = new Set(); let mouseHeld = false, clickFlag = false, drag = false, mdx = 0, mdy = 0;
-  const input = (G.input = { dx: 0, dy: 0, mouse: false, click: false, locked: false, noLock: false, down: (c) => G.started && keys.has(c), hit: (c) => G.started && pressed.has(c) });
-  const lock = () => { if (input.locked || input.noLock) return; try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => { input.noLock = true; }); } catch (e) { input.noLock = true; } };
-  addEventListener('keydown', (e) => {
-    if (!G.started) return;
-    if (!e.repeat) pressed.add(e.code); keys.add(e.code);
-    if (e.code === 'KeyH' && !e.repeat) toggleHelp(); if (e.code === 'KeyP' && !e.repeat) { G.paused = !G.paused; G.ui.banner(G.paused ? 'PAUSE' : '', G.paused ? 'P で再開' : '', G.paused ? 9999 : 0.01); }
-    if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.code)) e.preventDefault();
+  // ---- 入力（キーボード・マウス / タッチ / ゲームパッド） ----
+  const input = (G.input = new Input(G, canvas));
+  input.attach();
+  // タッチでは pointerdown の直後に合成 click が飛んでくるため、連続トグルを無視する
+  let helpT = 0;
+  const toggleHelp = () => {
+    const now = performance.now(); if (now - helpT < 320) return; helpT = now;
+    const h = $('help'); h.classList.toggle('hidden');
+    G.paused = !h.classList.contains('hidden');
+    if (G.paused) document.exitPointerLock?.();
+  };
+  const togglePause = () => {
+    G.paused = !G.paused;
+    const how = input.scheme === 'touch' ? 'II ボタンで再開' : input.scheme === 'pad' ? 'START で再開' : 'P で再開';
+    G.ui.banner(G.paused ? 'PAUSE' : '', G.paused ? how : '', G.paused ? 9999 : 0.01);
+  };
+  // click ではなく pointerdown で閉じる：タッチでボタンから開いた直後に合成 click が重なるため。
+  // カード内のタップはスクロール用に残し、背景か「閉じる」行で閉じる
+  $('help').addEventListener('pointerdown', (e) => {
+    const card = e.target.closest?.('.help-card');
+    if (!card || e.target.classList.contains('close')) toggleHelp();
   });
-  addEventListener('keyup', (e) => keys.delete(e.code));
-  addEventListener('blur', () => { keys.clear(); mouseHeld = false; drag = false; });
-  canvas.addEventListener('mousedown', (e) => {
-    if (!G.started || G.paused) return;
-    if (!input.locked && !input.noLock) { lock(); if (e.button === 0) mouseHeld = true; return; }
-    if (e.button === 0) { mouseHeld = true; clickFlag = true; } else drag = true;
-  });
-  addEventListener('mouseup', (e) => { if (e.button === 0) mouseHeld = false; else drag = false; });
-  addEventListener('mousemove', (e) => { if (input.locked || (input.noLock && (mouseHeld || drag))) { mdx += e.movementX; mdy += e.movementY; } });
-  canvas.addEventListener('contextmenu', (e) => e.preventDefault());
-  document.addEventListener('pointerlockchange', () => { input.locked = document.pointerLockElement === canvas; });
-  document.addEventListener('pointerlockerror', () => { input.noLock = true; });
-  const toggleHelp = () => { const h = $('help'); h.classList.toggle('hidden'); G.paused = !h.classList.contains('hidden'); if (G.paused) document.exitPointerLock?.(); };
-  $('help').addEventListener('click', toggleHelp);
 
   // ---- ポストプロセス ----
   let film = null;
   function buildComposer() {
-    const q = QUALITY[G.quality], pr = Math.min(devicePixelRatio || 1, q.pr), w = Math.max(2, Math.floor(innerWidth * pr)), h = Math.max(2, Math.floor(innerHeight * pr));
+    const q = QUALITY[G.quality], pr = Math.min(devicePixelRatio || 1, q.pr * (G.touch ? 0.8 : 1)), w = Math.max(2, Math.floor(innerWidth * pr)), h = Math.max(2, Math.floor(innerHeight * pr));
     renderer.setPixelRatio(pr); renderer.setSize(innerWidth, innerHeight, false);
     if (G.composer) { G.composer.renderTarget1.dispose(); G.composer.renderTarget2.dispose(); }
     const composer = (G.composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, samples: q.msaa })));
@@ -147,15 +154,19 @@ function init() {
 
   // ---- タイトル ----
   const startBtn = $('start'); startBtn.disabled = false; startBtn.textContent = '修羅の国へ';
-  startBtn.addEventListener('click', () => {
+  const startGame = () => {
     if (G.started) return;
     G.audio.voice = $('voice').checked; G.audio.init(); if ($('quality').value !== G.quality) G.setQuality($('quality').value);
-    G.started = true; $('title').classList.add('gone'); G.ui.showHUD(true); G.mission.objective(); lock();
+    if (G.touch) { try { document.documentElement.requestFullscreen?.({ navigationUI: 'hide' })?.catch?.(() => {}); } catch (e) {} }
+    G.started = true; $('title').classList.add('gone'); G.ui.showHUD(true); G.mission.objective(); input.lock(); input.showTouch(true);
     G.player.camT.set(G.player.pos.x, G.player.pos.y + 1.6, G.player.pos.z);
-    setTimeout(() => G.ui.toast('1：洗脳スプレー／2：ごぼ天ソード で市民の Infection_Meter を上げろ', 'info'), 600);
-    setTimeout(() => G.ui.toast('目の前のダンプ（E）でオーガニックカフェ（緑の光柱）に突っ込め', 'info'), 2600);
-    setTimeout(() => G.ui.toast('H：操作説明', 'info'), 4600);
-  });
+    setTimeout(() => G.ui.toast(G.input.touch ? '画面下の武器リストをタップして切替：洗脳スプレー／ごぼ天ソードで市民の Infection_Meter を上げろ' : '1：洗脳スプレー／2：ごぼ天ソード で市民の Infection_Meter を上げろ', 'info'), 600);
+    setTimeout(() => G.ui.toast('目の前のダンプ（<b>E</b>）でオーガニックカフェ（緑の光柱）に突っ込め', 'info'), 2600);
+    setTimeout(() => G.ui.toast(G.touch ? '画面上の ？ ボタンで操作説明' : input.scheme === 'pad' ? 'SELECT：操作説明' : 'H：操作説明', 'info'), 4600);
+  };
+  startBtn.addEventListener('click', startGame);
+  // パッドのボタンだけで開始した場合、AudioContext が suspended のままになることがある
+  for (const t of ['pointerdown', 'keydown', 'touchend']) addEventListener(t, () => { try { G.audio.ctx?.resume?.(); } catch (e) {} }, { passive: true });
 
   // ---- ループ ----
   let last = performance.now(), slowT = 0, sinceSwitch = 0;
@@ -163,7 +174,12 @@ function init() {
     requestAnimationFrame(frame);
     let dt = (now - last) / 1000; last = now; if (dt > 0.25) dt = 0.016; const raw = dt; dt = Math.min(dt, 0.05);
     G.fps = damp(G.fps, 1 / Math.max(raw, 1e-4), 2, raw);
-    input.dx = mdx; input.dy = mdy; mdx = mdy = 0; input.mouse = G.started && (mouseHeld || keys.has('KeyJ')); input.click = G.started && (clickFlag || pressed.has('KeyJ')); clickFlag = false;
+    input.beginFrame(dt);
+    if (!G.started) { if (input.anyPress) startGame(); }
+    else {
+      if (input.hitKey('KeyH') || input.hit('VHelp')) toggleHelp();
+      if (input.hitKey('KeyP') || input.hit('VPause')) togglePause();
+    }
     if (!G.paused) {
       G.time += dt; G.dt = dt;
       G.vehicles.update(dt);
@@ -187,7 +203,7 @@ function init() {
       sinceSwitch += raw;
       if (G.started && G.fps < 27 && sinceSwitch > 5) { slowT += raw; if (slowT > 3.5 && G.quality !== 'low') { G.setQuality(G.quality === 'high' ? 'mid' : 'low'); G.ui.toast(`描画負荷が高いため画質を「${G.qualityName}」に下げた`, 'info'); slowT = 0; sinceSwitch = 0; } } else slowT = 0;
     }
-    pressed.clear();
+    input.endFrame();
     if (film) film.uniforms.uTime.value = G.time % 100;
     G.composer.render(dt);
   }
