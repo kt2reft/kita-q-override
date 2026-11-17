@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KITA-Q OVERRIDE — ALPHA</title>
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="shura-tint"></div>
+<div id="hurt"></div>
+
+<div id="hud" class="hidden">
+  <div id="objective"><div id="obj-title"></div><div id="obj-body"></div></div>
+  <div id="right">
+    <canvas id="minimap" width="200" height="200"></canvas>
+    <div id="stats"></div>
+    <div id="wanted"></div>
+  </div>
+  <div id="vitals">
+    <div class="bar"><span class="lbl">気合</span><div class="track"><div id="hp-fill" class="fill hp"></div></div></div>
+    <div class="bar"><span class="lbl">スプレー</span><div class="track"><div id="spray-fill" class="fill spray"></div></div></div>
+    <div id="skill"></div>
+  </div>
+  <div id="weapons"></div>
+  <div id="prompt"></div>
+  <div id="altimeter"></div>
+  <div id="crosshair"></div>
+  <div id="toasts"></div>
+  <div id="fps"></div>
+  <div id="keys-hint">H：操作説明</div>
+</div>
+
+<div id="bubbles"></div>
+<div id="banner"></div>
+<div id="lb-top" class="lb"></div><div id="lb-bottom" class="lb"></div>
+<div id="flash"></div>
+<div id="fade"></div>
+
+<div id="help" class="hidden">
+  <div class="help-card">
+    <h2>操作説明</h2>
+    <div class="help-grid">
+      <div><h3>徒歩</h3>
+        <p><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移動　<kbd>マウス</kbd>/<kbd>矢印</kbd> 視点</p>
+        <p><kbd>Shift</kbd> ダッシュ　<kbd>C</kbd> 歩き切替　<kbd>Space</kbd> ジャンプ</p>
+        <p><kbd>クリック</kbd>/<kbd>J</kbd> 攻撃・使用　<kbd>F</kbd> 強制給餌テイクダウン</p>
+        <p><kbd>E</kbd> 乗る・調べる　<kbd>G</kbd> ヤンキー座り</p>
+        <p><kbd>1</kbd> スプレー <kbd>2</kbd> ごぼ天 <kbd>3</kbd> ペイント <kbd>4</kbd> ロケラン <kbd>5</kbd> 木刀 <kbd>Q</kbd> 素手</p>
+      </div>
+      <div><h3>ビークル / パラグライダー</h3>
+        <p><kbd>W</kbd><kbd>S</kbd> アクセル/ブレーキ　<kbd>A</kbd><kbd>D</kbd> ハンドル</p>
+        <p><kbd>Space</kbd> サイドブレーキ　<kbd>E</kbd> 降りる</p>
+        <p>太鼓山車：<kbd>クリック</kbd>/<kbd>F</kbd> 太鼓の衝撃波</p>
+        <p>空中で <kbd>Space</kbd> パラグライダー（<kbd>A</kbd><kbd>D</kbd> 旋回 <kbd>W</kbd> 急降下 <kbd>S</kbd> フレア）</p>
+        <p><kbd>P</kbd> ポーズ　<kbd>H</kbd> この画面</p>
+      </div>
+    </div>
+    <h3>オーバーライドの手引き</h3>
+    <ul>
+      <li>スプレーやごぼ天ソードで市民の <b>Infection_Meter</b> を 100 にするとヤンキー化し、舎弟として追従する。</li>
+      <li>メーター 50 以上の相手には <kbd>F</kbd> で強制給餌テイクダウン（即 100、10 秒気絶）。</li>
+      <li>オーガニックカフェは <b>ダンプで突入</b> するか <b>カップ酒</b> を供えると「角打ち」化。半径 50m が修羅ゾーンになる。</li>
+      <li>信号機を壊すと、その交差点の車は歩行者を無視して突っ込む。</li>
+      <li>素手（<kbd>Q</kbd>）で歩く・立つと <b>ヤンキー横断</b> が発動し、前方の車を急停止させる。</li>
+    </ul>
+    <p class="close">H または クリックで閉じる</p>
+  </div>
+</div>
+
+<div id="title">
+  <div class="title-inner">
+    <div class="logo-sub">プロジェクト</div>
+    <h1 class="logo">KITA-Q <span>OVERRIDE</span></h1>
+    <div class="logo-jp">北九オーバーライド　<em>ALPHA BUILD 1.0</em></div>
+    <p class="tagline">お上品（クリーン）に漂白された街を、修羅（ヤンキー）で上書きせよ。</p>
+    <div class="opts">
+      <label>画質 <select id="quality"><option value="high">高画質（AO・ブルーム・MSAA）</option><option value="mid">標準</option><option value="low">軽量</option></select></label>
+      <label><input type="checkbox" id="voice" checked> ボイス（音声合成）</label>
+    </div>
+    <button id="start" disabled>LOADING…</button>
+    <div class="title-keys">WASD 移動 ／ マウス 視点 ／ クリック 攻撃 ／ E 乗る・調べる ／ F テイクダウン ／ H 操作説明</div>
+    <div id="err"></div>
+  </div>
+</div>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
