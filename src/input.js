@@ -42,6 +42,7 @@ export class Input {
     this.locked = false; this.noLock = false;
     this.wcycle = 0;                                   // 武器送り（-1/+1、1フレームのみ）
     this.anyPress = false;                             // タイトルでの「何か押された」
+    this.diag = false;                                 // F2：コントローラ検出状況の表示
     this.ctx = 'foot';                                 // 'foot' | 'vehicle' | 'glide' | 'cut' …
     this.scheme = 'kb';                                // 'kb' | 'pad' | 'touch'（UI 表記の切替用）
     this.sens = 1;
@@ -143,6 +144,22 @@ export class Input {
     this._px = lx; this._pz = -ly;
     this._mdx += rx * PAD_LOOK * dt; this._mdy += ry * PAD_LOOK * 0.75 * dt;
     if (act) { this.padIndex = gp.index; this.setScheme('pad'); }
+  }
+
+  // ブラウザがコントローラをどう見ているかをそのまま表示する（F2）
+  diagText() {
+    let list = null;
+    try { list = navigator.getGamepads ? navigator.getGamepads() : null; } catch (e) { return 'getGamepads() が使えない環境です'; }
+    if (!list) return 'このブラウザは Gamepad API に対応していません';
+    const pads = [...list].filter((p) => p && p.connected);
+    if (!pads.length) return '<b>コントローラ未検出</b><br>ブラウザがパッドを認識していません。<br>ページをクリックしてから、パッドのボタンを一度押してください。<br>（Bluetooth なら接続を、PS/Switch パッドは対応モードかを確認）';
+    return pads.map((g) => {
+      const ax = [...g.axes].map((v) => v.toFixed(2)).join(' ');
+      const on = [...g.buttons].map((b, i) => (b && (b.pressed || b.value > 0.45) ? i : -1)).filter((i) => i >= 0);
+      return `<b>${g.id}</b><br>mapping: <b>${g.mapping || '(なし)'}</b>　index: ${g.index}　軸数: ${g.axes.length}　ボタン数: ${g.buttons.length}`
+        + `<br>軸: ${ax}<br>押下中のボタン番号: ${on.length ? on.join(', ') : '(なし)'}`
+        + `<br>入力方式: ${this.scheme}　移動: ${this.mvx.toFixed(2)} / ${this.mvz.toFixed(2)}`;
+    }).join('<hr>');
   }
 
   // ---------- 仮想スティック ----------

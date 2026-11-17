@@ -169,7 +169,7 @@ function init() {
   for (const t of ['pointerdown', 'keydown', 'touchend']) addEventListener(t, () => { try { G.audio.ctx?.resume?.(); } catch (e) {} }, { passive: true });
 
   // ---- ループ ----
-  let last = performance.now(), slowT = 0, sinceSwitch = 0;
+  let last = performance.now(), slowT = 0, sinceSwitch = 0, diagT = 0;
   function frame(now) {
     requestAnimationFrame(frame);
     let dt = (now - last) / 1000; last = now; if (dt > 0.25) dt = 0.016; const raw = dt; dt = Math.min(dt, 0.05);
@@ -179,7 +179,10 @@ function init() {
     else {
       if (input.hitKey('KeyH') || input.hit('VHelp')) toggleHelp();
       if (input.hitKey('KeyP') || input.hit('VPause')) togglePause();
+      if (input.hitKey('F2')) { input.diag = !input.diag; const d = $('paddiag'); d.classList.toggle('show', input.diag); if (input.diag) d.innerHTML = input.diagText(); }
     }
+    // コントローラ診断（ポーズ中も更新する）
+    if (input.diag && ++diagT % 6 === 0) $('paddiag').innerHTML = input.diagText();
     if (!G.paused) {
       G.time += dt; G.dt = dt;
       G.vehicles.update(dt);
