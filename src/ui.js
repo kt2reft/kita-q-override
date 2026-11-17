@@ -6,6 +6,13 @@ import { WEAPONS } from './player.js';
 
 const $ = (id) => document.getElementById(id);
 
+// 操作ガイドの <b>キー名</b> を操作方式ごとの表記に差し替える
+const GLYPH = {
+  pad: { E: 'X', F: 'B', G: 'Y', H: 'Y', Q: '十字↑', C: 'L3', SPACE: 'A', 'クリック': 'RT', 'クリック/F': 'RT / B', 'W/S': 'RT / LT', 'A/D': '左スティック' },
+  touch: { E: '使用', F: '給餌', G: '座', H: '笛', Q: '素手', C: '歩', SPACE: '跳', 'クリック': '攻撃', 'クリック/F': '太鼓', 'W/S': 'アクセル', 'A/D': 'スティック' },
+};
+const HINT = { kb: 'H：操作説明', pad: 'SELECT：操作説明', touch: '' };
+
 export class UI {
   constructor(G) {
     this.G = G; this.v = new THREE.Vector3(); this.frame = 0;
@@ -14,18 +21,32 @@ export class UI {
     this.map = $('minimap').getContext('2d');
     this.bubbles = []; const host = $('bubbles');
     for (let i = 0; i < 10; i++) { const el = document.createElement('div'); el.className = 'bubble'; host.appendChild(el); this.bubbles.push({ el, target: null, ttl: 0 }); }
-    this.el.weapons.innerHTML = WEAPONS.map((w, i) => `<div class="wslot" data-i="${i}"><span class="wkey">${w.key}</span><span class="wname">${w.name}</span><span class="wammo"></span></div>`).join('');
+    this.scheme = 'kb';
+    // data-k：タッチで武器スロットを直接タップして切り替えられるようにする（Input がバインドする）
+    this.el.weapons.innerHTML = WEAPONS.map((w, i) => `<div class="wslot" data-i="${i}" data-k="${i === 0 ? 'KeyQ' : `Digit${i}`}"><span class="wkey">${w.key}</span><span class="wname">${w.name}</span><span class="wshort">${w.short}</span><span class="wammo"></span></div>`).join('');
     this.slots = [...this.el.weapons.children]; this.bannerT = 0; this.lastPrompt = ''; this.lastStats = ''; this.lastSkill = ''; this.lastAlt = '';
   }
   showHUD(v) { this.el.hud.classList.toggle('hidden', !v); }
+  schemeChanged(s) { // Input から呼ばれる：操作ガイドの表記を切り替える
+    this.scheme = s;
+    const hint = $('keys-hint'); if (hint) hint.textContent = HINT[s] ?? HINT.kb;
+    const tk = $('title-keys');
+    if (tk && s !== 'kb') tk.firstChild.textContent = s === 'pad'
+      ? '左スティック 移動 ／ 右スティック 視点 ／ RT 攻撃 ／ X 乗る・調べる ／ B テイクダウン ／ SELECT 操作説明'
+      : '左下をなぞって移動 ／ 右側をなぞって視点 ／ 右下のボタンで行動 ／ ？ で操作説明';
+  }
+  glyph(html) {
+    const m = GLYPH[this.scheme]; if (!m || !html) return html;
+    return html.replace(/<b>(.*?)<\/b>/g, (all, k) => (m[k] ? `<b>${m[k]}</b>` : all));
+  }
   objective(title, body) { this.el.objT.textContent = title; this.el.objB.innerHTML = body; }
   toast(text, cls = 'info') {
-    const el = document.createElement('div'); el.className = `toast ${cls}`; el.textContent = text; this.el.toasts.appendChild(el);
+    const el = document.createElement('div'); el.className = `toast ${cls}`; el.innerHTML = this.glyph(text); this.el.toasts.appendChild(el);
     while (this.el.toasts.children.length > 5) this.el.toasts.firstChild.remove();
     setTimeout(() => el.classList.add('out'), 4200); setTimeout(() => el.remove(), 4800);
   }
-  prompt(html) { const h = html || ''; if (h === this.lastPrompt) return; this.lastPrompt = h; this.el.prompt.innerHTML = h; this.el.prompt.classList.toggle('show', !!h); }
-  banner(title, sub = '', dur = 3, cls = '') { const b = this.el.banner; b.className = `show ${cls}`; b.innerHTML = `<div class="b-title">${title}</div><div class="b-sub">${sub}</div>`; this.bannerT = dur; }
+  prompt(html) { const h = this.glyph(html || ''); if (h === this.lastPrompt) return; this.lastPrompt = h; this.el.prompt.innerHTML = h; this.el.prompt.classList.toggle('show', !!h); }
+  banner(title, sub = '', dur = 3, cls = '') { const b = this.el.banner; b.className = `show ${cls}`; b.innerHTML = `<div class="b-title">${title}</div><div class="b-sub">${this.glyph(sub)}</div>`; this.bannerT = dur; }
   bubble(target, text, dur = 2, cls = '') {
     let b = this.bubbles.find((k) => k.ttl <= 0) || this.bubbles.reduce((a, k) => (k.ttl < a.ttl ? k : a));
     b.target = target; b.ttl = dur; b.el.textContent = text; b.el.className = `bubble show ${cls}`;
@@ -63,8 +84,8 @@ export class UI {
     const lv = G.law.level; this.el.wanted.innerHTML = lv > 0 ? `<span class="wl">通報</span>${'<i class="on"></i>'.repeat(lv)}${'<i></i>'.repeat(3 - lv)}` : '';
     // スキル表示
     let sk = '';
-    if (P.mode === 'foot' && P.yankeeWalk) sk = `<b>ヤンキー横断</b> 発動中${P.braked ? `　Force_Brake ×${P.braked}` : ''}${P.glare && !P.glare.yankee ? `<br>睨みつけ：運転手の恐怖 ${Math.min(100, P.glare.fear).toFixed(0)}%` : ''}`;
-    else if (P.mode === 'foot' && WEAPONS[P.weapon].id === 'none') sk = '<span class="dim">歩く（C）か立ち止まるとヤンキー横断</span>';
+    if (P.mode === 'foot' && P.yankeeWalk) sk = `<b>ヤンキー横断</b> 発動中${P.braked ? `　Force_Brake ×${P.braked}` : ''}${P.glare && !P.glare.yankee ? `<br>瞋みつけ：運転手の恐怖 ${Math.min(100, P.glare.fear).toFixed(0)}%` : ''}`;
+    else if (P.mode === 'foot' && WEAPONS[P.weapon].id === 'none') sk = this.glyph('<span class="dim">歩く（<b>C</b>）か立ち止まるとヤンキー横断</span>');
     if (sk !== this.lastSkill) { this.lastSkill = sk; this.el.skill.innerHTML = sk; this.el.skill.classList.toggle('show', !!sk); }
     // 統計
     const S = G.stats, shura = this.shuraPct(); const inZone = G.facilities.inShura(P.pos.x, P.pos.z);
